@@ -277,7 +277,7 @@ void MQTTBroker::handleMQTTMessage(JsonDocument &jsonMsg) {
 
     JsonVariant printValues = jsonMsg["print"];
     if (printValues) {
-        if (printValues.containsKey("home_flag")) {
+        if (printValues["home_flag"]) {
             bool oldDoorOpen = doorOpen;
             // "home_flag" value is a signed 32 bit int as a string. .as<uint32_t>() will fail if
             // the high bit is set, so we use as<int32_t>() first then cast to uint32_t.
@@ -286,7 +286,7 @@ void MQTTBroker::handleMQTTMessage(JsonDocument &jsonMsg) {
             stateChanged = stateChanged || (oldDoorOpen != doorOpen);
         }
 
-        if (printValues.containsKey("stg_cur")) {
+        if (printValues["stg_cur"]) {
             int stage = printValues["stg_cur"];
             State oldState = state;
             if (ERROR_STAGES.count(stage) > 0) {
@@ -342,7 +342,7 @@ void MQTTBroker::handleMQTTMessage(JsonDocument &jsonMsg) {
             }
         }
 
-        if (printValues.containsKey("print_error")) {
+        if (printValues["print_error"]) {
             int printError = printValues["print_error"].as<int32_t>();
             if (printError > 0) {
                 State oldState = state;
@@ -357,9 +357,9 @@ void MQTTBroker::handleMQTTMessage(JsonDocument &jsonMsg) {
 
     if (printValues) {
         int percent = -1;
-        if (printValues.containsKey("percent")) {
+        if (printValues["percent"]) {
             percent = printValues["percent"].as<int>();
-        } else if (printValues.containsKey("mc_percent")) {
+        } else if (printValues["mc_percent"]) {
             percent = printValues["mc_percent"].as<int>();
         }
 
@@ -381,7 +381,7 @@ void MQTTBroker::onCompleteMessage(const espMqttClientTypes::MessageProperties& 
 	JsonDocument jsonMsg;
 	DeserializationError deserializeError = deserializeJson(jsonMsg, payload, length, DeserializationOption::Filter(filter));
 	if (!deserializeError) {
-		if (jsonMsg.containsKey("print")) {
+		if (jsonMsg["print"]) {
 			handleMQTTMessage(jsonMsg);
 		} else {
 			serializeJson(jsonMsg, Serial);

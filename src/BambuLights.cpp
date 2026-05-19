@@ -1,3 +1,6 @@
+#include <Arduino.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 #include "BambuLights.h"
 #include <math.h>
 
@@ -223,7 +226,7 @@ void BambuLights::setState(State state) {
     byte oldPattern = *currentPattern;
     black = false;
     brightWhite = false;
-    CHSV oldColor = {*currentHue, *currentSaturation, *currentValue};
+    CHSV oldColor = {(uint8_t)(int)*currentHue, (uint8_t)(int)*currentSaturation, (uint8_t)(int)*currentValue};
     if (oldPattern == pulse) {
       oldColor.v = getPulseBrightness();
     }
@@ -258,7 +261,7 @@ void BambuLights::setState(State state) {
         break;
     }
 
-    CHSV newColor = {*currentHue, *currentSaturation, *currentValue};
+    CHSV newColor = {(uint8_t)(int)*currentHue, (uint8_t)(int)*currentSaturation, (uint8_t)(int)*currentValue};
     if (oldBlack != black) {
       if (black) {
         // Fade from old color to old color at zero brightness
@@ -328,8 +331,8 @@ void BambuLights::renderProgressBar() {
     return;
   }
 
-  uint8_t hue = *currentHue;
-  uint8_t sat = *currentSaturation;
+  uint8_t hue = (uint8_t)(int)*currentHue;
+  uint8_t sat = (uint8_t)(int)*currentSaturation;
   uint16_t val;
 
   if (*currentPattern == pulse) {
@@ -403,7 +406,7 @@ void BambuLights::loop() {
         val = val * brightness / 255;
         break;
     }
-    fill(*currentHue, *currentSaturation, val);
+    fill((uint8_t)(int)*currentHue, (uint8_t)(int)*currentSaturation, val);
   }
   show();
 }

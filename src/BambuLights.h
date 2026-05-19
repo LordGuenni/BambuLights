@@ -60,6 +60,7 @@ private:
 
   void setCurrentConfig(CompositeConfigItem& config);
   void renderProgressBar();
+  void doReinit();
 
   // Pattern methods
   byte getPulseBrightness();
