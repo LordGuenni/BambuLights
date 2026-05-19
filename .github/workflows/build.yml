@@ -14,6 +14,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Cache pip
         uses: actions/cache@v4
@@ -53,29 +55,45 @@ jobs:
         run: |
           pio run -t buildfs -t merge_bin
 
-      - name: Rename Merged Binaries
+      - name: Prepare Assets
         run: |
           mkdir -p artifacts
-          [ -f .pio/build/pico32/firmware_merged.bin ] && cp .pio/build/pico32/firmware_merged.bin artifacts/bl_firmware_pico32.bin || echo "pico32 merged bin not found"
-          [ -f .pio/build/s3/firmware_merged.bin ] && cp .pio/build/s3/firmware_merged.bin artifacts/bl_firmware_s3.bin || echo "s3 merged bin not found"
-          [ -f .pio/build/c3/firmware_merged.bin ] && cp .pio/build/c3/firmware_merged.bin artifacts/bl_firmware_c3.bin || echo "c3 merged bin not found"
+          echo "Finding merged binaries..."
+          find .pio/build -name "firmware_merged.bin"
+          
+          [ -f .pio/build/pico32/firmware_merged.bin ] && cp -v .pio/build/pico32/firmware_merged.bin artifacts/bl_firmware_pico32.bin || echo "pico32 merged bin not found"
+          [ -f .pio/build/s3/firmware_merged.bin ] && cp -v .pio/build/s3/firmware_merged.bin artifacts/bl_firmware_s3.bin || echo "s3 merged bin not found"
+          [ -f .pio/build/c3/firmware_merged.bin ] && cp -v .pio/build/c3/firmware_merged.bin artifacts/bl_firmware_c3.bin || echo "c3 merged bin not found"
+          
+          echo "Contents of artifacts directory:"
+          ls -R artifacts
+
+      - name: Update Nightly Tag
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git tag -f nightly
+          git push -f origin nightly
 
       - name: Nightly Release
         if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
-        uses: marvinpinto/action-automatic-releases@latest
+        uses: softprops/action-gh-release@v2
         with:
-          repo_token: "${{ secrets.GITHUB_TOKEN }}"
-          automatic_release_tag: "nightly"
+          tag_name: nightly
+          name: "Nightly Build"
           prerelease: true
-          title: "Nightly Build"
+          body: "Automated nightly build from branch ${{ github.ref_name }} (commit ${{ github.sha }})"
           files: |
-            artifacts/*.bin
+            artifacts/bl_firmware_pico32.bin
+            artifacts/bl_firmware_s3.bin
+            artifacts/bl_firmware_c3.bin
+          fail_on_unmatched_files: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload Firmware Binaries (Artifacts)
+      - name: Upload Artifacts (Job Backup)
         uses: actions/upload-artifact@v4
         with:
-          name: BambuLights-Firmware
-          path: |
-            artifacts/*.bin
-            .pio/build/**/firmware.bin
-            .pio/build/**/littlefs.bin
+          name: BambuLights-Firmware-Files
+          path: artifacts/*.bin
