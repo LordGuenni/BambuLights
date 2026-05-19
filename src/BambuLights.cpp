@@ -189,7 +189,7 @@ CompositeConfigItem& BambuLights::getAllConfig() {
 };
 
 BambuLights::BambuLights(int pin) :
-    pixels(new NeoPixelBus <NeoGrbFeature, Neo800KbpsMethod>(getNumLEDs(), pin)),
+    pixels(new NeoPixelBus <NeoGrbFeature, NeoEsp32Rmt0800KbpsMethod>(getNumLEDs(), pin)),
     pin(pin),
     currentState(noWiFi)
 {
@@ -197,18 +197,23 @@ BambuLights::BambuLights(int pin) :
 }
 
 void BambuLights::updatePixelCount() {
+  reinitPending = true;
+}
+
+void BambuLights::doReinit() {
   if (pixels->PixelCount() != getNumLEDs()) {
     pixels->ClearTo(0);
     show();
     pixels->Dirty();
     show();
     delete pixels;
-    pixels = new NeoPixelBus <NeoGrbFeature, Neo800KbpsMethod>(getNumLEDs(), pin);
+    pixels = new NeoPixelBus <NeoGrbFeature, NeoEsp32Rmt0800KbpsMethod>(getNumLEDs(), pin);
     begin();
   }
 }
 
 void BambuLights::setState(State state) {
+  if (reinitPending) return;
   if (currentState != state) {
     currentState = state;
 
@@ -289,6 +294,19 @@ void BambuLights::setState(State state) {
   }
 }
 
+void BambuLights::setProgressPercent(int percent) {
+  if (percent < 0) {
+    progressPercent = -1;
+    return;
+  }
+
+  if (percent > 100) {
+    percent = 100;
+  }
+
+  progressPercent = percent;
+}
+
 void BambuLights::setCurrentConfig(CompositeConfigItem& config) {
   currentConfig = &config;
   currentPattern = (ByteConfigItem*)config.get("pattern");
@@ -303,9 +321,72 @@ void BambuLights::begin()  {
 	pixels->Show();
 }
 
+void BambuLights::renderProgressBar() {
+  if (black) {
+    clear();
+    show();
+    return;
+  }
+
+  uint8_t hue = *currentHue;
+  uint8_t sat = *currentSaturation;
+  uint16_t val;
+
+  if (*currentPattern == pulse) {
+    val = getPulseBrightness();
+  } else {
+    val = *currentValue;
+    val = val * brightness / 255;
+  }
+
+  uint16_t totalLeds = pixels->PixelCount();
+  int percent = progressPercent;
+  if (percent < 0) {
+    percent = 0;
+  } else if (percent > 100) {
+    percent = 100;
+  }
+
+  float litFloat = ((float)percent * (float)totalLeds) / 100.0f;
+  uint16_t litCount = (uint16_t)lroundf(litFloat);
+  bool blinkSingle = false;
+  if (litCount == 0) {
+    litCount = 1;
+    blinkSingle = true;
+  }
+
+  bool blinkOn = true;
+  if (blinkSingle) {
+    blinkOn = (millis() / 500) % 2 == 0;
+  }
+
+  for (uint16_t i = 0; i < totalLeds; i++) {
+    if (i < litCount) {
+      if (blinkSingle && i == 0 && !blinkOn) {
+        setPixelColor(i, 0, 0, 0);
+      } else {
+        setPixelColor(i, hue, sat, val);
+      }
+    } else {
+      setPixelColor(i, 0, 0, 0);
+    }
+  }
+
+  show();
+}
+
 void BambuLights::loop() {
+  if (reinitPending) {
+    doReinit();
+    reinitPending = false;
+  }
   //   enum patterns { dark, constant, rainbow, pulse, breath, num_patterns };
   uint8_t current_pattern = *currentPattern;
+
+  if (currentState == printing && progressPercent >= 0 && *currentPattern == progress) {
+    renderProgressBar();
+    return;
+  }
 
   if (black) {
     clear();
@@ -380,6 +461,8 @@ void BambuLights::fill(uint8_t hue, uint8_t sat, uint8_t val) {
     oldHue = hue;
     oldSat = sat;
     oldVal = val;
+    oldCount = getNumLEDs();
+    oldLedType = getLedType();
 #ifdef DEBUG_COLORS
     Serial.print("Filling with ");
     Serial.print("{h=");Serial.print(hue);
@@ -388,17 +471,14 @@ void BambuLights::fill(uint8_t hue, uint8_t sat, uint8_t val) {
     Serial.print("}");
     Serial.println("");
 #endif
-    RgbColor color = HsbColor((byte)(hue)/256.0, (byte)(sat)/256.0, val/256.0);
-    // color = colorGamma.Correct(color);
+    RgbColor color = HsbColor((float)hue/255.0f, (float)sat/255.0f, (float)val/255.0f);
     if (getLedType() == 1)  { // RGB not GRB
       uint8_t oldRed = color.R;
       color.R = color.G;
       color.G = oldRed;
     }
 
-    for (uint8_t digit=0; digit < pixels->PixelCount(); digit++) {
-      pixels->SetPixelColor(digit, color);
-    }
+    pixels->ClearTo(color);
   }
 }
 
@@ -421,4 +501,4 @@ void BambuLights::setPixelColor(uint8_t digit, uint8_t hue, uint8_t sat, uint8_t
 }
 
 const String BambuLights::patterns_str[BambuLights::num_patterns] = 
-  { "Constant", "Pulse" };
+  { "Constant", "Pulse", "Progress" };

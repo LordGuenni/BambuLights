@@ -10,7 +10,7 @@ class BambuLights {
 public:
   BambuLights(int pin);
 
-  enum Patterns { constant, pulse, num_patterns };
+  enum Patterns { constant, pulse, progress, num_patterns };
   enum State { noWiFi, noPrinter, printer, printing, no_lights, white, error, warning, finished };
 
   const static String patterns_str[num_patterns];
@@ -35,6 +35,7 @@ public:
   void updatePixelCount();
 
   void setState(State state);
+  void setProgressPercent(int percent);
   void setBrightness(byte brightness) { this->brightness = brightness; }
 
 private:
@@ -42,8 +43,10 @@ private:
   bool brightWhite = false;
   byte brightness = 255;
   int pin;
-  
-  NeoPixelBus <NeoGrbFeature, Neo800KbpsMethod> *pixels;
+  int progressPercent = -1;
+  volatile bool reinitPending = false;
+
+  NeoPixelBus <NeoGrbFeature, NeoEsp32Rmt0800KbpsMethod> *pixels;
   NeoGamma<NeoGammaTableMethod> colorGamma;
 
   State currentState;
@@ -56,6 +59,7 @@ private:
   long pulseOffset = 0;
 
   void setCurrentConfig(CompositeConfigItem& config);
+  void renderProgressBar();
 
   // Pattern methods
   byte getPulseBrightness();

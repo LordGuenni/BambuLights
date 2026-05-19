@@ -27,6 +27,7 @@ public:
     bool isDoorOpen() { return doorOpen; }
     bool isLightOn() { return lightOn; }
     State getState() { return state; }
+    int getProgressPercent() { return progressPercent; }
     void setChamberLight(bool on);
 
 private:
@@ -47,6 +48,7 @@ private:
     State state = disconnected;
     bool doorOpen;
     bool lightOn = true;
+    int progressPercent = -1;
 
     uint32_t lastReconnect = 0;
 

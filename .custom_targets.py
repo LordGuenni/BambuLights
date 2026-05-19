@@ -2,11 +2,14 @@ import os
 import shutil
 import re
 import json
-from version import *
+import sys
 from subprocess import check_output, CalledProcessError
 import platform
 
 Import("env")
+
+sys.path.insert(0, env["PROJECT_DIR"])
+from version import *
 
 def copy_and_replace(src, dest):
     with open(src, "r") as src_file:

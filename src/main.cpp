@@ -35,7 +35,7 @@ const char *manifest[]{
     // Firmware name
     "Bambu Lighting",
     // Firmware version
-    "0.4.6",
+    "0.4.7",
     // Hardware chip/variant
 #if defined(CONFIG_IDF_TARGET_ESP32)
     "ESP32",
@@ -292,6 +292,12 @@ void ledTaskFn(void *pArg) {
 				}
 			}
 		}
+
+		int progressPercent = -1;
+		if (lightsState == BambuLights::printing) {
+			progressPercent = mqttBroker.getProgressPercent();
+		}
+		bambuLights->setProgressPercent(progressPercent);
 
 		bambuLights->setState(lightsState);
 

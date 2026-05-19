@@ -228,6 +228,8 @@ MQTTBroker::MQTTBroker() : client(espMqttClientTypes::UseInternalTask::YES) {
     filter["print"]["print_error"] = true;
 	filter["print"]["home_flag"] = true;
 	filter["print"]["lights_report"] = true;
+    filter["print"]["percent"] = true;
+    filter["print"]["mc_percent"] = true;
 }
 
 void MQTTBroker::setStateChangedCallback(std::function<void(MQTTBroker*)> callback) {
@@ -350,6 +352,22 @@ void MQTTBroker::handleMQTTMessage(JsonDocument &jsonMsg) {
                 }
                 stateChanged = stateChanged || (oldState != state);               
             }
+        }
+    }
+
+    if (printValues) {
+        int percent = -1;
+        if (printValues.containsKey("percent")) {
+            percent = printValues["percent"].as<int>();
+        } else if (printValues.containsKey("mc_percent")) {
+            percent = printValues["mc_percent"].as<int>();
+        }
+
+        if (percent >= 0) {
+            if (percent > 100) {
+                percent = 100;
+            }
+            progressPercent = percent;
         }
     }
 
