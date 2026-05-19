@@ -9,6 +9,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - uses: actions/checkout@v4
@@ -58,7 +60,18 @@ jobs:
           [ -f .pio/build/s3/firmware_merged.bin ] && cp .pio/build/s3/firmware_merged.bin artifacts/bl_firmware_s3.bin || echo "s3 merged bin not found"
           [ -f .pio/build/c3/firmware_merged.bin ] && cp .pio/build/c3/firmware_merged.bin artifacts/bl_firmware_c3.bin || echo "c3 merged bin not found"
 
-      - name: Upload Firmware Binaries
+      - name: Nightly Release
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+        uses: marvinpinto/action-automatic-releases@latest
+        with:
+          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          automatic_release_tag: "nightly"
+          prerelease: true
+          title: "Nightly Build"
+          files: |
+            artifacts/*.bin
+
+      - name: Upload Firmware Binaries (Artifacts)
         uses: actions/upload-artifact@v4
         with:
           name: BambuLights-Firmware
