@@ -23,9 +23,8 @@
 #include "MQTTHABroker.h"
 #include "BambuLights.h"
 
-#define DEBUG(...) { Serial.println(__VA_ARGS__); }
 #ifndef DEBUG
-#define DEBUG(...) {  }
+#define DEBUG(...) { Serial.println(__VA_ARGS__); }
 #endif
 
 static String TRUE_STRING("true");
@@ -378,7 +377,7 @@ void broadcastUpdate(String originalKey, String& originalValue) {
 
 	root["type"] = "sv.update";
 
-	JsonVariant value = root.createNestedObject("value");
+	JsonObject value = root[ "value" ].to<JsonObject>();
 	value[originalKey] = serialized(originalValue.c_str());
 
 	size_t len = measureJson(root);

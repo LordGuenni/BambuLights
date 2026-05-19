@@ -7,7 +7,7 @@ String WSMenuHandler::infoMenu = "{\"4\": { \"url\" : \"info.html\", \"title\" :
 
 void WSMenuHandler::handle(AsyncWebSocketClient *client, char *data) {
 	String json("{\"type\":\"sv.init.menu\", \"value\":[");
-	char *sep = "";
+	const char *sep = "";
 	for (int i=0; items[i] != 0; i++) {
 		json.concat(sep);json.concat(*items[i]);sep=",";
 	}
