@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [ main, master ]
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -34,12 +37,12 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.9'
+          python-version: '3.11'
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '24'
 
       - name: Install PlatformIO
         run: |
@@ -51,22 +54,22 @@ jobs:
           cd web
           npm install
 
-      - name: Run PlatformIO Build
-        run: |
-          pio run -t buildfs -t merge_bin
+      - name: Build Firmware (Pico32)
+        run: pio run -e pico32 -t buildfs -t merge_bin
+
+      - name: Build Firmware (S3)
+        run: pio run -e s3 -t buildfs -t merge_bin
+
+      - name: Build Firmware (C3)
+        run: pio run -e c3 -t buildfs -t merge_bin
 
       - name: Prepare Assets
         run: |
           mkdir -p artifacts
-          echo "Finding merged binaries..."
-          find .pio/build -name "firmware_merged.bin"
-          
-          [ -f .pio/build/pico32/firmware_merged.bin ] && cp -v .pio/build/pico32/firmware_merged.bin artifacts/bl_firmware_pico32.bin || echo "pico32 merged bin not found"
-          [ -f .pio/build/s3/firmware_merged.bin ] && cp -v .pio/build/s3/firmware_merged.bin artifacts/bl_firmware_s3.bin || echo "s3 merged bin not found"
-          [ -f .pio/build/c3/firmware_merged.bin ] && cp -v .pio/build/c3/firmware_merged.bin artifacts/bl_firmware_c3.bin || echo "c3 merged bin not found"
-          
-          echo "Contents of artifacts directory:"
-          ls -R artifacts
+          [ -f .pio/build/pico32/firmware_merged.bin ] && cp -v .pio/build/pico32/firmware_merged.bin artifacts/bl_firmware_pico32.bin
+          [ -f .pio/build/s3/firmware_merged.bin ] && cp -v .pio/build/s3/firmware_merged.bin artifacts/bl_firmware_s3.bin
+          [ -f .pio/build/c3/firmware_merged.bin ] && cp -v .pio/build/c3/firmware_merged.bin artifacts/bl_firmware_c3.bin
+          ls -lh artifacts/
 
       - name: Update Nightly Tag
         if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
@@ -84,16 +87,13 @@ jobs:
           name: "Nightly Build"
           prerelease: true
           body: "Automated nightly build from branch ${{ github.ref_name }} (commit ${{ github.sha }})"
-          files: |
-            artifacts/bl_firmware_pico32.bin
-            artifacts/bl_firmware_s3.bin
-            artifacts/bl_firmware_c3.bin
-          fail_on_unmatched_files: false
+          files: artifacts/bl_firmware_*.bin
+          fail_on_unmatched_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload Artifacts (Job Backup)
         uses: actions/upload-artifact@v4
         with:
-          name: BambuLights-Firmware-Files
-          path: artifacts/*.bin
+          name: BambuLights-Firmware
+          path: artifacts/bl_firmware_*.bin
