@@ -14,6 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      id-token: write
 
     steps:
       - uses: actions/checkout@v6
@@ -66,9 +67,28 @@ jobs:
       - name: Prepare Assets
         run: |
           mkdir -p artifacts
-          [ -f .pio/build/pico32/firmware_merged.bin ] && cp -v .pio/build/pico32/firmware_merged.bin artifacts/bl_firmware_pico32.bin
-          [ -f .pio/build/s3/firmware_merged.bin ] && cp -v .pio/build/s3/firmware_merged.bin artifacts/bl_firmware_s3.bin
-          [ -f .pio/build/c3/firmware_merged.bin ] && cp -v .pio/build/c3/firmware_merged.bin artifacts/bl_firmware_c3.bin
+          echo "Scanning .pio/build for binaries..."
+          ls -R .pio/build
+          
+          # Use a loop to robustly find and rename binaries for all successful environments
+          for dir in .pio/build/*/ ; do
+            env_name=$(basename "$dir")
+            # Look for merged binary first
+            if [ -f "${dir}firmware_merged.bin" ]; then
+              echo "Found merged binary for $env_name"
+              cp -v "${dir}firmware_merged.bin" "artifacts/bl_firmware_${env_name}.bin"
+            elif [ -f "${dir}firmware.bin" ]; then
+              echo "Found standard binary for $env_name"
+              cp -v "${dir}firmware.bin" "artifacts/bl_firmware_${env_name}_ota.bin"
+            fi
+            
+            # Also grab the filesystem image if it exists
+            if [ -f "${dir}littlefs.bin" ]; then
+              cp -v "${dir}littlefs.bin" "artifacts/bl_web_${env_name}.bin"
+            fi
+          done
+          
+          echo "Final artifacts ready for release:"
           ls -lh artifacts/
 
       - name: Update Nightly Tag
@@ -87,7 +107,7 @@ jobs:
           name: "Nightly Build"
           prerelease: true
           body: "Automated nightly build from branch ${{ github.ref_name }} (commit ${{ github.sha }})"
-          files: artifacts/bl_firmware_*.bin
+          files: artifacts/*.bin
           fail_on_unmatched_files: true
           generate_release_notes: false
         env:
@@ -97,4 +117,4 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: BambuLights-Firmware
-          path: artifacts/bl_firmware_*.bin
+          path: artifacts/*.bin
